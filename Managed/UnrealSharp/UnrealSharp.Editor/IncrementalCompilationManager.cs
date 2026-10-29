@@ -129,6 +129,14 @@ public static class IncrementalCompilationManager
     {
         List<Project> projects = ProjectUtilities.GetProjectsFromNames(modifiedAssemblyNames, SolutionManager.CurrentProjects);
 
+        if (projects.Count != modifiedAssemblyNames.Count)
+        {
+            IEnumerable<string> missingAssemblyNames = modifiedAssemblyNames.Except(
+                projects.Select(project => project.Name), StringComparer.Ordinal);
+            throw new InvalidOperationException("Modified assemblies could not be resolved to Roslyn projects: "
+                                                + string.Join(", ", missingAssemblyNames));
+        }
+
         for (int i = projects.Count - 1; i >= 0; i--)
         {
             Stopwatch stopwatch = Stopwatch.StartNew();
@@ -311,27 +319,12 @@ public static class IncrementalCompilationManager
         return GetOutputPath(project, extension);
     }
 
-    private static string GetDebugSymbolExtension()
-    {
-        if (OperatingSystem.IsWindows())
-        {
-            return ".pdb";
-        }
-
-        if (OperatingSystem.IsMacOS())
-        {
-            return ".dSYM";
-        }
-
-        return ".so.debug";
-    }
-
     private static void EmitResultsToDisk(Project project, Compilation updatedCompilation)
     {
         Stopwatch stopwatch = Stopwatch.StartNew();
 
         string assemblyPath = GetAssemblyOutputPath(project);
-        string symbolsPath = GetOutputPath(project, GetDebugSymbolExtension());
+        string symbolsPath = GetOutputPath(project, ".pdb");
         string assemblyTempPath = assemblyPath + ".tmp";
         string symbolsTempPath = symbolsPath + ".tmp";
 
